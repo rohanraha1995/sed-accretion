@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>GRMHD SED Calculator</title>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f3f4f6;color:#111827}
+
+/* NAV */
+nav{background:#111827;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.nav-logo{display:flex;align-items:center;gap:10px}
+.nav-logo .dot{width:32px;height:32px;background:#f97316;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+.nav-logo span{color:#fff;font-size:1rem;font-weight:700}
+.nav-logo span b{color:#f97316}
+.nav-status{display:flex;align-items:center;gap:8px}
+.py-dot{width:8px;height:8px;border-radius:50%;background:#6b7280}
+.py-dot.ready{background:#22c55e}
+.py-dot.running{background:#f97316}
+.py-dot.error{background:#ef4444}
+.py-msg{font-size:0.78rem;color:#9ca3af}
+.nav-btn{background:#f97316;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-size:0.82rem;font-weight:600;cursor:pointer}
+.nav-btn:hover{background:#ea6c05}
+
+/* HERO */
+.hero{background:#111827;color:#fff;padding:56px 5% 48px}
+.hero-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
+.hero-label{font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#f97316;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.hero-label::before,.hero-label::after{content:'';flex:0 0 32px;height:1.5px;background:#f97316}
+.hero h1{font-size:2.2rem;font-weight:800;line-height:1.2;margin-bottom:1rem}
+.hero h1 span{color:#f97316}
+.hero p{font-size:0.88rem;color:#9ca3af;line-height:1.7;margin-bottom:1.75rem}
+.hero-btns{display:flex;gap:1rem}
+.btn-primary{background:#f97316;color:#fff;border:none;padding:11px 22px;border-radius:7px;font-size:0.88rem;font-weight:700;cursor:pointer}
+.btn-primary:hover{background:#ea6c05}
+.btn-secondary{background:transparent;color:#fff;border:1.5px solid #374151;padding:11px 22px;border-radius:7px;font-size:0.88rem;font-weight:600;cursor:pointer}
+.btn-secondary:hover{border-color:#9ca3af}
+.hero-tags{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:1.5rem}
+.hero-tag{background:#1f2937;border-radius:8px;padding:0.75rem 1rem}
+.hero-tag .t{font-size:0.78rem;font-weight:700;color:#fff}
+.hero-tag .s{font-size:0.68rem;color:#6b7280;margin-top:2px}
+.hero-right{display:flex;flex-direction:column;gap:1rem}
+.feature-row{display:flex;align-items:flex-start;gap:1rem;background:#1f2937;border-radius:10px;padding:1rem 1.25rem}
+.feature-icon{font-size:1.4rem;flex-shrink:0}
+.feature-row h4{font-size:0.85rem;font-weight:700;color:#fff;margin-bottom:2px}
+.feature-row p{font-size:0.74rem;color:#6b7280;line-height:1.4}
+.formula-box{background:#1f2937;border-radius:10px;padding:1rem 1.25rem}
+.formula-box p{font-size:0.72rem;color:#9ca3af;line-height:2;font-family:monospace}
+.formula-box p span{color:#f97316}
+
+/* SECTION HEADER */
+.calc-header{max-width:100%;margin:0;text-align:center;padding:2.5rem 0 0.5rem}
+.calc-label{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#f97316;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:center;gap:8px}
+.calc-label::before,.calc-label::after{content:'';flex:0 0 32px;height:1.5px;background:#f97316}
+.calc-header h2{font-size:1.75rem;font-weight:800;color:#111827;margin-bottom:0.5rem}
+.calc-header p{font-size:0.88rem;color:#6b7280;line-height:1.6}
+
+/* MAIN */
+.main{max-width:100%;margin:0;padding:1.5rem 0 3rem}
+
+/* CARDS */
+.card{background:#fff;border-radius:0;border:none;border-bottom:1px solid #e5e7eb;padding:1.5rem 2rem;margin-bottom:0}
+.card-hd{display:flex;align-items:center;gap:10px;margin-bottom:1.1rem}
+.card-hd-icon{width:32px;height:32px;background:#fef3c7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.card-hd h3{font-size:0.95rem;font-weight:700;color:#111827}
+.card-hd p{font-size:0.74rem;color:#6b7280}
+
+/* DROP ZONE */
+.drop-zone{border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:pointer;transition:all 0.2s;background:#f9fafb;position:relative}
+.drop-zone:hover,.drop-zone.drag{border-color:#f97316;background:#fff7ed}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:2.2rem;margin-bottom:0.5rem}
+.drop-zone h4{font-size:0.9rem;font-weight:600;color:#111827;margin-bottom:0.2rem}
+.drop-zone p{font-size:0.78rem;color:#9ca3af}
+.file-badge{display:none;align-items:center;gap:8px;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:7px;padding:0.55rem 0.9rem;margin-top:0.75rem}
+.file-badge span{font-size:0.82rem;font-weight:600;color:#065f46;flex:1}
+.file-badge button{background:none;border:none;color:#6b7280;cursor:pointer;font-size:1rem;padding:0}
+.file-badge button:hover{color:#ef4444}
+.alert{display:none;padding:0.55rem 0.9rem;border-radius:7px;font-size:0.8rem;margin-top:0.6rem}
+.alert.err{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}
+.alert.ok{background:#f0fdf4;color:#166534;border:1px solid #86efac}
+
+/* COLUMN GRID */
+.col-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:0.9rem}
+.col-item{border:1.5px solid #fde68a;border-radius:7px;padding:0.5rem 0.75rem;background:#fffbeb}
+.col-item.opt{border-color:#a7f3d0;background:#f0fdf4}
+.col-item .cn{font-size:0.78rem;font-weight:700;color:#92400e}
+.col-item.opt .cn{color:#065f46}
+.col-item .cd{font-size:0.7rem;color:#78716c}
+
+/* PARAMS */
+.param-section-label{font-size:0.68rem;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1.5px;margin:1.1rem 0 0.6rem;padding-bottom:0.3rem;border-bottom:1.5px solid #fed7aa}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:0.9rem}
+.pgrid.one{grid-template-columns:1fr}
+.pg{display:flex;flex-direction:column;gap:3px}
+.pg label{font-size:0.78rem;font-weight:600;color:#374151}
+.pg .desc{font-size:0.68rem;color:#9ca3af;line-height:1.3}
+.pg input,.pg select{width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-size:0.84rem;color:#111827;outline:none;background:#fff;transition:border-color 0.2s}
+.pg input:focus,.pg select:focus{border-color:#f97316}
+
+/* READY BOX */
+.ready-box{background:#111827;border-radius:12px;padding:1.5rem;margin-bottom:1.25rem;text-align:center}
+.ready-box h3{font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:0.4rem}
+.ready-box p{font-size:0.82rem;color:#9ca3af;margin-bottom:1.1rem;line-height:1.5}
+#runHint{font-size:0.75rem;color:#6b7280;margin-top:0.6rem}
+.btn-run{background:#f97316;color:#fff;border:none;padding:12px 32px;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;min-width:160px}
+.btn-run:hover{background:#ea6c05}
+.btn-run:disabled{background:#d1d5db;color:#9ca3af;cursor:not-allowed}
+
+/* PROGRESS */
+.prog-box{display:none;background:#1f2937;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem}
+.steps{display:flex;gap:0.5rem;margin-bottom:0.75rem}
+.sd{flex:1;height:6px;border-radius:3px;background:#374151;transition:background 0.3s}
+.sd.done{background:#f97316}
+.prog-lbl{font-size:0.76rem;color:#9ca3af;text-align:center}
+
+/* STATUS */
+#statusBox{margin-top:0.75rem;padding:0.6rem 0.9rem;border-radius:7px;font-size:0.8rem;display:none}
+#statusBox.info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+#statusBox.success{background:#f0fdf4;color:#166534;border:1px solid #86efac}
+#statusBox.error{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}
+
+/* RESULTS */
+#resultsPanel{display:none;margin-top:0.5rem}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1rem}
+.stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0.9rem;text-align:center}
+.stat-card .sv{font-size:0.95rem;font-weight:700;color:#f97316;font-family:monospace}
+.stat-card .sl{font-size:0.67rem;color:#6b7280;margin-top:2px}
+.res-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem}
+.res-hd h3{font-size:0.9rem;font-weight:700;color:#111827}
+.dl-btns{display:flex;gap:0.5rem}
+.dl-btn{padding:6px 14px;border-radius:6px;font-size:0.77rem;font-weight:600;cursor:pointer;border:1.5px solid #f97316;background:#fff;color:#f97316;transition:all 0.2s}
+.dl-btn:hover{background:#f97316;color:#fff}
+.dl-btn:disabled{border-color:#d1d5db;color:#9ca3af;cursor:not-allowed}
+.chart-box{border:1px solid #e5e7eb;border-radius:10px;padding:1rem;background:#fff}
+#noResults{text-align:center;padding:2.5rem 1rem;background:#fff;border:1px solid #e5e7eb;border-radius:12px}
+#noResults .ico{font-size:2.2rem;margin-bottom:0.5rem}
+#noResults p{font-size:0.82rem;color:#9ca3af;line-height:1.5}
+
+footer{background:#111827;color:#6b7280;text-align:center;padding:1.25rem 5%;font-size:0.78rem;margin-top:1.5rem}
+footer strong{color:#f97316}
+
+@media(max-width:700px){.hero-inner,.pgrid,.col-grid,.stats-row{grid-template-columns:1fr}.hero-tags{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="dot">⚫</div>
+    <span>GRMHD<b>SED Calc</b></span>
+  </div>
+  <div class="nav-status">
+    <div class="py-dot" id="pyDot"></div>
+    <span class="py-msg" id="pyMsg">Loading Python…</span>
+  </div>
+  <button class="nav-btn" onclick="document.querySelector('.main').scrollIntoView({behavior:'smooth'})">Get Started →</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-label">Astrophysics Research Tool</div>
+      <h1>Broadband <span>Spectral Energy</span><br/>Distribution from Black Hole Accretion</h1>
+      <p>Compute self-consistent synchrotron and inverse Compton spectral energy distributions directly from GRMHD simulation outputs. Upload your 3D accretion disk data, configure physical model parameters, and generate the full broadband SED — running entirely in your browser via Python.</p>
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="document.querySelector('.main').scrollIntoView({behavior:'smooth'})">Get Started ↓</button>
+        <button class="btn-secondary">View Documentation</button>
+      </div>
+      <div class="hero-tags">
+        <div class="hero-tag"><div class="t">GRMHD</div><div class="s">3D SIM DATA</div></div>
+        <div class="hero-tag"><div class="t">Syn + IC</div><div class="s">FULL SED</div></div>
+        <div class="hero-tag"><div class="t">NumPy · SciPy</div><div class="s">PYTHON BACKEND</div></div>
+        <div class="hero-tag"><div class="t">In-Browser</div><div class="s">NO SERVER NEEDED</div></div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="feature-row"><div class="feature-icon">📡</div><div><h4>Synchrotron Emission</h4><p>Self-absorbed emissivity across 3D grid</p></div></div>
+      <div class="feature-row"><div class="feature-icon">🔁</div><div><h4>Inverse Compton</h4><p>Multi-scattering IC with Wien cutoff</p></div></div>
+      <div class="feature-row"><div class="feature-icon">📊</div><div><h4>SED Output</h4><p>ν L_ν vs ν — downloadable CSV + PNG</p></div></div>
+      <div class="formula-box">
+        <p><span>ν_c</span> = (3/2) ν_s Θ_e²</p>
+        <p><span>j_ν^syn</span> ∝ nₑ νc / K₂(1/Θₑ)</p>
+        <p><span>τ</span> = nₑ σT ℓ &nbsp;&nbsp; <span>y</span> = 4 Θₑ max(τ, τ²)</p>
+        <p><span>j_ν^IC</span> = y · j_ν^syn · e^(-hν/kTₑ)</p>
+        <p><span>L_ν</span> = ∫ j_ν dV</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CALCULATOR HEADER -->
+<div class="calc-header">
+  <div class="calc-label">Calculator</div>
+  <h2>Upload Data &amp; Configure Model</h2>
+  <p>Provide your GRMHD simulation output as a CSV file and set the physical model parameters below. The Run Code button will activate only after both are provided.</p>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- UPLOAD -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hd-icon">📂</div>
+      <div><h3>Simulation Data</h3><p>Upload your GRMHD output CSV</p></div>
+    </div>
+    <div class="drop-zone" id="dropZone"
+      ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+      <input type="file" id="csvFile" accept=".csv" onchange="handleFile(this.files[0])"/>
+      <div class="drop-icon">📂</div>
+      <h4>Drop CSV file here or click to browse</h4>
+      <p>Accepts .csv files only</p>
+    </div>
+    <div class="file-badge" id="fileBadge">
+      <span id="fileName">—</span>
+      <button onclick="clearFile()" title="Remove file">✕</button>
+    </div>
+    <div class="alert err" id="alertCSV"></div>
+    <div class="alert ok" id="successCSV"></div>
+
+    <div style="font-size:0.78rem;font-weight:700;color:#374151;margin:1rem 0 0.5rem">Required column structure</div>
+    <div class="col-grid">
+      <div class="col-item"><div class="cn">r</div><div class="cd">Radial grid points</div></div>
+      <div class="col-item"><div class="cn">h</div><div class="cd">Polar (θ) grid</div></div>
+      <div class="col-item"><div class="cn">phi</div><div class="cd">Azimuthal (φ) grid</div></div>
+      <div class="col-item"><div class="cn">rho</div><div class="cd">Gas density ρ</div></div>
+      <div class="col-item"><div class="cn">B</div><div class="cd">Magnetic field</div></div>
+      <div class="col-item"><div class="cn">pg</div><div class="cd">Gas pressure</div></div>
+      <div class="col-item opt" style="grid-column:1/-1"><div class="cn">volume_element &nbsp;<em style="font-weight:400">(optional)</em></div><div class="cd">Auto-computed as r² sinθ Δr Δθ Δφ if absent</div></div>
+    </div>
+  </div>
+
+  <!-- KEY PARAMS -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hd-icon">⚙️</div>
+      <div><h3>Key Physical Parameters</h3><p>Core accretion and plasma parameters</p></div>
+    </div>
+    <div class="pgrid">
+      <div class="pg">
+        <label>Ṁ (Ṁ<sub>Edd</sub>)</label>
+        <div class="desc">Mass accretion rate at horizon, in Eddington units</div>
+        <input id="p_mdot" type="number" value="0.01" step="0.001"/>
+      </div>
+      <div class="pg">
+        <label>M<sub>BH</sub> (M<sub>☉</sub>)</label>
+        <div class="desc">Black hole mass in solar masses</div>
+        <input id="p_mbh" type="number" value="14" step="1"/>
+      </div>
+      <div class="pg">
+        <label>μ<sub>i</sub></label>
+        <div class="desc">Mean molecular weight per ion. Pure H: 0.5</div>
+        <input id="p_mui" type="number" value="0.5" step="0.1"/>
+      </div>
+      <div class="pg">
+        <label>μ<sub>e</sub></label>
+        <div class="desc">Mean molecular weight per electron. Pure H: 0.5</div>
+        <input id="p_mue" type="number" value="0.5" step="0.1"/>
+      </div>
+    </div>
+    <div class="pgrid one" style="margin-top:0.9rem">
+      <div class="pg">
+        <label>R (T<sub>p</sub>/T<sub>e</sub>)</label>
+        <div class="desc">Proton-to-electron temperature ratio</div>
+        <input id="p_R" type="number" value="300" step="10"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPECTRAL PARAMS -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hd-icon" style="background:#ede9fe">📐</div>
+      <div><h3>Spectral &amp; Radiative Transfer Parameters</h3><p>Frequency grid and Comptonization settings</p></div>
+    </div>
+
+    <div class="param-section-label">Frequency Grid</div>
+    <div class="pgrid">
+      <div class="pg"><label>N<sub>freq</sub></label><div class="desc">Number of log-spaced frequency grid points</div><input id="p_Nfreq" type="number" value="100" step="10" min="10" max="500"/></div>
+      <div class="pg"><label>ν<sub>min</sub> (Hz)</label><div class="desc">Lower bound of spectral frequency grid</div><input id="p_numin" type="number" value="1e9"/></div>
+      <div class="pg"><label>ν<sub>max</sub> (Hz)</label><div class="desc">Upper bound of spectral frequency grid</div><input id="p_numax" type="number" value="1e22"/></div>
+    </div>
+
+    <div class="param-section-label">Comptonization</div>
+    <div class="pgrid">
+      <div class="pg"><label>τ<sub>max</sub></label><div class="desc">Max optical depth before spectrum thermalizes</div><input id="p_taumax" type="number" value="10" step="1"/></div>
+      <div class="pg"><label>f<sub>cutoff</sub></label><div class="desc">Wien cutoff factor for IC high-energy suppression</div><input id="p_fcutoff" type="number" value="2" step="0.5"/></div>
+      <div class="pg"><label>N<sub>scatt,thin</sub></label><div class="desc">Max IC scatterings in optically thin regions (τ &lt; 1)</div><input id="p_Nthin" type="number" value="1" step="1"/></div>
+      <div class="pg"><label>N<sub>scatt,thick</sub></label><div class="desc">Max IC scatterings in optically thick regions (τ ≥ 1)</div><input id="p_Nthick" type="number" value="5" step="1"/></div>
+    </div>
+
+    <div class="param-section-label">Volume Element</div>
+    <div class="pgrid one">
+      <div class="pg">
+        <label>Source</label>
+        <div class="desc">Use CSV column if present, otherwise auto-compute r² sinθ Δr Δθ Δφ</div>
+        <select id="p_vol_mode"><option value="csv">Use volume_element column from CSV</option><option value="auto">Auto-compute from grid</option></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- READY / RUN -->
+  <div class="ready-box">
+    <h3>Ready to Compute?</h3>
+    <p>Upload your simulation CSV and ensure all parameters are set, then click Run Code to start the calculation.</p>
+    <button class="btn-run" id="runBtn" disabled onclick="runCalculation()">▶ Run Code</button>
+    <div id="runHint">Waiting for Python environment to load…</div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="prog-box" id="progressBox">
+    <div class="steps"><div class="sd" id="d1"></div><div class="sd" id="d2"></div><div class="sd" id="d3"></div><div class="sd" id="d4"></div></div>
+    <div class="prog-lbl" id="progLbl">Starting…</div>
+  </div>
+  <div id="statusBox"></div>
+
+  <!-- RESULTS -->
+  <div id="resultsPanel">
+    <div class="stats-row">
+      <div class="stat-card"><div class="sv" id="s_peak_syn">—</div><div class="sl">Peak ν L<sub>ν</sub> Synchrotron</div></div>
+      <div class="stat-card"><div class="sv" id="s_peak_ic">—</div><div class="sl">Peak ν L<sub>ν</sub> IC</div></div>
+      <div class="stat-card"><div class="sv" id="s_peak_tot">—</div><div class="sl">Peak ν L<sub>ν</sub> Total</div></div>
+    </div>
+    <div class="res-hd">
+      <h3>Results</h3>
+      <div class="dl-btns">
+        <button class="dl-btn" id="btnDlCSV" disabled onclick="downloadCSV()">⬇ Download CSV</button>
+        <button class="dl-btn" id="btnDlPNG" disabled onclick="downloadPNG()">⬇ Download PNG</button>
+      </div>
+    </div>
+    <div class="chart-box"><canvas id="specChart"></canvas></div>
+  </div>
+
+  <div id="noResults">
+    <div class="ico">📊</div>
+    <p>Upload your simulation CSV, configure the model parameters,<br/>and click <strong>Run Code</strong> to generate the spectrum.</p>
+  </div>
+
+</div><!-- /main -->
+
+<footer>
+  <strong>GRMHD SED Calc</strong> &nbsp;·&nbsp; IISc Bangalore &nbsp;·&nbsp; Astrophysics Research &nbsp;·&nbsp; Powered by Pyodide + NumPy + SciPy
+</footer>
+
+<script>
+var pyodide=null, csvRaw=null, specResults=null, specChart=null, pyReady=false;
+
+// ── Load Pyodide ──────────────────────────────────────────────────────────────
+loadPyodide().then(function(py){
+  pyodide=py; return pyodide.loadPackage(['numpy','scipy']);
+}).then(function(){
+  pyReady=true;
+  setStatus('ready','Python ready');
+  checkRunReady();
+}).catch(function(){
+  setStatus('error','Python load failed');
+});
+
+function setStatus(state,msg){
+  document.getElementById('pyDot').className='py-dot '+state;
+  document.getElementById('pyMsg').textContent=msg;
+}
+
+function checkRunReady(){
+  var ok=pyReady&&csvRaw!==null;
+  document.getElementById('runBtn').disabled=!ok;
+  document.getElementById('runHint').textContent=
+    !pyReady?'Waiting for Python environment to load…':
+    !csvRaw?'Please upload your simulation CSV file to enable the Run Code button.':
+    'All inputs ready — click Run Code to start the computation.';
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+function onDrag(e,s){e.preventDefault();document.getElementById('dropZone').classList.toggle('drag',s);}
+function onDrop(e){e.preventDefault();onDrag(e,false);handleFile(e.dataTransfer.files[0]);}
+
+function handleFile(file){
+  if(!file)return;
+  hideAlerts();
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    csvRaw=ev.target.result;
+    document.getElementById('fileName').textContent=file.name;
+    document.getElementById('fileBadge').style.display='flex';
+    var el=document.getElementById('successCSV');
+    el.textContent='"'+file.name+'" loaded successfully';
+    el.style.display='block';
+    checkRunReady();
+  };
+  reader.readAsText(file);
+}
+
+function clearFile(){
+  csvRaw=null;
+  document.getElementById('csvFile').value='';
+  document.getElementById('fileBadge').style.display='none';
+  hideAlerts(); checkRunReady();
+}
+
+function gv(id){return document.getElementById(id).value;}
+
+// ── Run calculation ───────────────────────────────────────────────────────────
+function runCalculation(){
+  if(!pyodide||!csvRaw)return;
+  hideAlerts();
+  var btn=document.getElementById('runBtn');
+  btn.textContent='⏳ Computing…'; btn.disabled=true;
+  setStatus('running','Running calculation…');
+  var pb=document.getElementById('progressBox');
+  pb.style.display='block'; setStep(1);
+
+  pyodide.globals.set('csv_content', csvRaw);
+  pyodide.globals.set('_mu_i',   parseFloat(gv('p_mui')));
+  pyodide.globals.set('_mu_e',   parseFloat(gv('p_mue')));
+  pyodide.globals.set('_R',      parseFloat(gv('p_R')));
+  pyodide.globals.set('_Nfreq',  parseInt(gv('p_Nfreq')));
+  pyodide.globals.set('_numin',  parseFloat(gv('p_numin')));
+  pyodide.globals.set('_numax',  parseFloat(gv('p_numax')));
+  pyodide.globals.set('_taumax', parseFloat(gv('p_taumax')));
+  pyodide.globals.set('_fc',     parseFloat(gv('p_fcutoff')));
+  pyodide.globals.set('_Nthin',  parseFloat(gv('p_Nthin')));
+  pyodide.globals.set('_Nthick', parseFloat(gv('p_Nthick')));
+  pyodide.globals.set('_volmode',gv('p_vol_mode'));
+
+  setTimeout(function(){setStep(2);},300);
+  setTimeout(function(){setStep(3);},600);
+
+  var pyCode=[
+"import numpy as np, json",
+"from scipy.special import kn",
+"lines=[l.strip() for l in csv_content.strip().split('\\n') if l.strip()]",
+"header=[h.strip() for h in lines[0].split(',')]",
+"ncols=len(header)",
+"rows=[]",
+"for l in lines[1:]:",
+"    vals=l.split(',')",
+"    if len(vals)<ncols: continue",
+"    try: rows.append([float(v.strip()) for v in vals[:ncols]])",
+"    except: continue",
+"data=np.array(rows)",
+"def gc(n): return data[:,header.index(n)] if n in header else None",
+"r=np.unique(gc('r')); h=np.unique(gc('h')); phi=np.unique(gc('phi'))",
+"r_res,th_res,phi_res=len(r),len(h),len(phi)",
+"rho=gc('rho').reshape(r_res,th_res,phi_res)",
+"B=gc('B').reshape(r_res,th_res,phi_res)",
+"pg=gc('pg').reshape(r_res,th_res,phi_res)",
+"vc=gc('volume_element')",
+"if vc is not None and _volmode=='csv':",
+"    volume_element=vc.reshape(r_res,th_res,phi_res)",
+"else:",
+"    dr=r[1]-r[0] if r_res>1 else 1.0",
+"    dh=h[1]-h[0] if th_res>1 else 1.0",
+"    dp=phi[1]-phi[0] if phi_res>1 else 1.0",
+"    volume_element=(r[:,None,None]**2)*np.sin(h[None,:,None])*dr*dh*dp",
+"cl=2.998e10;e=4.803e-10;sigT=6.65245873e-25",
+"mp=1.67262171e-24;me=9.109e-28;kB=1.3806e-16;hPl=6.626e-27;EPS=1e-100",
+"r3d=r[:,None,None]",
+"Tp=(_mu_i*pg*mp)/(kB*rho+EPS)",
+"Te=Tp/_R; Theta_e=kB*Te/(me*cl**2); ne=rho/(_mu_e*mp+EPS)",
+"nu_s=(e*B)/(2*np.pi*me*cl+EPS); nu_c=1.5*nu_s*Theta_e**2",
+"dP_dtheta=np.gradient(pg,h,axis=1)",
+"dP_dz=np.abs(dP_dtheta)/(r3d+EPS)",
+"length_scale=pg/np.maximum(dP_dz,1e-30)",
+"tau=ne*sigT*length_scale",
+"tau_effective=np.minimum(np.maximum(tau,tau**2),_taumax)",
+"y_compton=4.0*Theta_e*tau_effective",
+"A_amp=1.0+4.0*Theta_e+16.0*Theta_e**2",
+"N_scat=tau_effective",
+"N_max=np.where(tau<1,_Nthin,_Nthick)",
+"N_scat_cap=np.minimum(N_scat,N_max)",
+"K2=kn(2,1.0/np.maximum(Theta_e,1e-10))",
+"K2=np.maximum(K2,1e-300)",
+"nu_array=np.logspace(np.log10(_numin),np.log10(_numax),_Nfreq)",
+"log_nu=np.log10(nu_array)",
+"N_flat=r_res*th_res*phi_res",
+"vol_flat=volume_element.ravel(); Te_flat=Te.ravel()",
+"ne_flat=ne.ravel(); nuc_flat=nu_c.ravel(); K2_flat=K2.ravel()",
+"ls_flat=length_scale.ravel(); yc_flat=y_compton.ravel()",
+"A_flat=A_amp.ravel(); Nc_flat=N_scat_cap.ravel()",
+"jsf=np.zeros((N_flat,_Nfreq),dtype=np.float32)",
+"L_syn=np.zeros(_Nfreq)",
+"for ifreq in range(_Nfreq):",
+"    nu=nu_array[ifreq]; X=nu/np.maximum(nuc_flat,1e-30)",
+"    pref=(np.sqrt(2)*np.pi*e**2*ne_flat*nuc_flat)/(3*cl*K2_flat+EPS)",
+"    shape=(X**0.5+2**(11.0/12)*X**(1.0/6))**2*np.exp(-np.minimum(X**(1.0/3),500))",
+"    j_syn=pref*shape",
+"    tau_s=j_syn*cl**2/(2*nu**2*kB*np.maximum(Te_flat,1e-30))*ls_flat",
+"    jse=np.where(tau_s>0.1,j_syn*(1-np.exp(-np.minimum(tau_s,500)))/np.maximum(tau_s,1e-300),j_syn)",
+"    jsf[:,ifreq]=jse.astype(np.float32); L_syn[ifreq]=float(np.dot(jse,vol_flat))",
+"log_jsf=np.log10(jsf+np.float32(1e-30)).astype(np.float32); del jsf",
+"L_IC=np.zeros(_Nfreq); arange_N=np.arange(N_flat)",
+"for ifreq in range(_Nfreq):",
+"    nu_obs=nu_array[ifreq]",
+"    nu_seed=nu_obs/np.maximum(A_flat**Nc_flat,1e-300)",
+"    lns=np.log10(np.maximum(nu_seed,1e-300)).astype(np.float32)",
+"    log_nu32=log_nu.astype(np.float32)",
+"    idx=np.searchsorted(log_nu32,lns).clip(1,_Nfreq-1)",
+"    lo=idx-1; hi=idx",
+"    t=np.clip((lns-log_nu32[lo])/(log_nu32[hi]-log_nu32[lo]+np.float32(1e-7)),0,1)",
+"    log_jseed=log_jsf[arange_N,lo]*(1-t)+log_jsf[arange_N,hi]*t",
+"    j_seed=(10**log_jseed).astype(np.float64)",
+"    xw=hPl*nu_obs/(kB*np.maximum(Te_flat,1e-30)*_fc)",
+"    cutoff=np.exp(-np.minimum(xw,500))",
+"    L_IC[ifreq]=float(np.dot(yc_flat*j_seed*cutoff,vol_flat))",
+"L_tot=L_syn+L_IC",
+"json.dumps({'nu':nu_array.tolist(),'L_syn':L_syn.tolist(),'L_IC':L_IC.tolist(),'L_tot':L_tot.tolist()})"
+  ].join('\n');
+
+  pyodide.runPythonAsync(pyCode).then(function(res){
+    specResults=JSON.parse(res);
+    var nf=parseInt(gv('p_Nfreq'));
+    setStep(4);
+    renderResults(specResults);
+    showSt('Calculation complete! '+nf+' spectral points computed.','success');
+    setStatus('ready','Done — '+nf+' spectral points');
+    document.getElementById('btnDlCSV').disabled=false;
+    document.getElementById('btnDlPNG').disabled=false;
+    pb.style.display='none';
+    btn.textContent='▶ Run Code'; btn.disabled=false;
+    checkRunReady();
+  }).catch(function(err){
+    var msg=err&&err.message?err.message:String(err);
+    showErr(msg);
+    setStatus('error','Calculation failed');
+    pb.style.display='none';
+    btn.textContent='▶ Run Code'; btn.disabled=false;
+    checkRunReady();
+    console.error(err);
+  });
+}
+
+function setStep(n){
+  ['d1','d2','d3','d4'].forEach(function(d,i){
+    document.getElementById(d).className='sd'+(i<n?' done':'');
+  });
+  var labels=['','Parsing CSV & building grid…','Computing synchrotron emission…','Computing inverse Compton…','Complete!'];
+  document.getElementById('progLbl').textContent=labels[n]||'';
+}
+
+function showSt(msg,cls){
+  var el=document.getElementById('statusBox');
+  el.textContent=msg; el.className=cls; el.style.display='block';
+}
+function showErr(msg){
+  var el=document.getElementById('alertCSV');
+  el.textContent='❌ '+msg; el.style.display='block';
+}
+function hideAlerts(){
+  ['alertCSV','successCSV','statusBox'].forEach(function(id){
+    var el=document.getElementById(id); if(el)el.style.display='none';
+  });
+}
+
+function fmtE(v){
+  if(!v||!isFinite(v)||v<=0)return'—';
+  var ex=Math.floor(Math.log10(v));
+  return (v/Math.pow(10,ex)).toFixed(2)+'×10^'+ex;
+}
+
+function renderResults(d){
+  document.getElementById('noResults').style.display='none';
+  document.getElementById('resultsPanel').style.display='block';
+  var nLs=d.nu.map(function(n,i){return n*d.L_syn[i];});
+  var nLi=d.nu.map(function(n,i){return n*d.L_IC[i];});
+  var nLt=d.nu.map(function(n,i){return n*d.L_tot[i];});
+  document.getElementById('s_peak_syn').textContent=fmtE(Math.max.apply(null,nLs));
+  document.getElementById('s_peak_ic').textContent=fmtE(Math.max.apply(null,nLi));
+  document.getElementById('s_peak_tot').textContent=fmtE(Math.max.apply(null,nLt));
+  if(specChart)specChart.destroy();
+  specChart=new Chart(document.getElementById('specChart').getContext('2d'),{
+    type:'line',
+    data:{labels:d.nu,datasets:[
+      {label:'Synchrotron',data:nLs,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.05)',borderWidth:2,pointRadius:0,tension:0.3},
+      {label:'Inverse Compton',data:nLi,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.05)',borderWidth:2,pointRadius:0,tension:0.3},
+      {label:'Total',data:nLt,borderColor:'#111827',backgroundColor:'rgba(17,24,39,0.04)',borderWidth:2,pointRadius:0,tension:0.3,borderDash:[5,3]}
+    ]},
+    options:{responsive:true,
+      scales:{
+        x:{type:'logarithmic',title:{display:true,text:'ν (Hz)',font:{size:12}},ticks:{callback:function(v){return '10^'+Math.round(Math.log10(v));}}},
+        y:{type:'logarithmic',min:1e28,max:1e38,title:{display:true,text:'νLν (erg s⁻¹)',font:{size:12}},ticks:{callback:function(v){return '10^'+Math.round(Math.log10(v));}}}
+      },
+      plugins:{legend:{position:'top'}}
+    }
+  });
+}
+
+function downloadCSV(){
+  if(!specResults)return;
+  var c='Freq (Hz),L_syn (erg/s/Hz),L_IC (erg/s/Hz),L_tot (erg/s/Hz)\n';
+  for(var i=0;i<specResults.nu.length;i++)
+    c+=specResults.nu[i]+','+specResults.L_syn[i]+','+specResults.L_IC[i]+','+specResults.L_tot[i]+'\n';
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([c],{type:'text/csv'}));
+  a.download='SED_results.csv'; a.click();
+}
+function downloadPNG(){
+  if(!specChart)return;
+  var a=document.createElement('a');
+  a.href=document.getElementById('specChart').toDataURL('image/png');
+  a.download='SED_plot.png'; a.click();
+}
+</script>
+</body>
+</html>
+
+Rohan Raha
+
+​
+Rohan Raha​
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>GRMHD SED Calculator</title>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f3f4f6;color:#111827}
+
+/* NAV */
+nav{background:#111827;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.nav-logo{display:flex;align-items:center;gap:10px}
+.nav-logo .dot{width:32px;height:32px;background:#f97316;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+.nav-logo span{color:#fff;font-size:1rem;font-weight:700}
+.nav-logo span b{color:#f97316}
+.nav-status{display:flex;align-items:center;gap:8px}
+.py-dot{width:8px;height:8px;border-radius:50%;background:#6b7280}
+.py-dot.ready{background:#22c55e}
+.py-dot.running{background:#f97316}
+.py-dot.error{background:#ef4444}
+.py-msg{font-size:0.78rem;color:#9ca3af}
+.nav-btn{background:#f97316;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-size:0.82rem;font-weight:600;cursor:pointer}
+.nav-btn:hover{background:#ea6c05}
+
+/* HERO */
+.hero{background:#111827;color:#fff;padding:56px 5% 48px}
+.hero-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
+.hero-label{font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#f97316;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.hero-label::before,.hero-label::after{content:'';flex:0 0 32px;height:1.5px;background:#f97316}
+.hero h1{font-size:2.2rem;font-weight:800;line-height:1.2;margin-bottom:1rem}
+.hero h1 span{color:#f97316}
+.hero p{font-size:0.88rem;color:#9ca3af;line-height:1.7;margin-bottom:1.75rem}
+.hero-btns{display:flex;gap:1rem}
+.btn-primary{background:#f97316;color:#fff;border:none;padding:11px 22px;border-radius:7px;font-size:0.88rem;font-weight:700;cursor:pointer}
+.btn-primary:hover{background:#ea6c05}
+.btn-secondary{background:transparent;color:#fff;border:1.5px solid #374151;padding:11px 22px;border-radius:7px;font-size:0.88rem;font-weight:600;cursor:pointer}
+.btn-secondary:hover{border-color:#9ca3af}
+.hero-tags{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:1.5rem}
+.hero-tag{background:#1f2937;border-radius:8px;padding:0.75rem 1rem}
+.hero-tag .t{font-size:0.78rem;font-weight:700;color:#fff}
+.hero-tag .s{font-size:0.68rem;color:#6b7280;margin-top:2px}
+.hero-right{display:flex;flex-direction:column;gap:1rem}
+.feature-row{display:flex;align-items:flex-start;gap:1rem;background:#1f2937;border-radius:10px;padding:1rem 1.25rem}
+.feature-icon{font-size:1.4rem;flex-shrink:0}
+.feature-row h4{font-size:0.85rem;font-weight:700;color:#fff;margin-bottom:2px}
+.feature-row p{font-size:0.74rem;color:#6b7280;line-height:1.4}
+.formula-box{background:#1f2937;border-radius:10px;padding:1rem 1.25rem}
+.formula-box p{font-size:0.72rem;color:#9ca3af;line-height:2;font-family:monospace}
+.formula-box p span{color:#f97316}
+
+/* SECTION HEADER */
+.calc-header{max-width:100%;margin:0;text-align:center;padding:2.5rem 0 0.5rem}
+.calc-label{font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#f97316;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:center;gap:8px}
+.calc-label::before,.calc-label::after{content:'';flex:0 0 32px;height:1.5px;background:#f97316}
+.calc-header h2{font-size:1.75rem;font-weight:800;color:#111827;margin-bottom:0.5rem}
+.calc-header p{font-size:0.88rem;color:#6b7280;line-height:1.6}
+
+/* MAIN */
+.main{max-width:100%;margin:0;padding:1.5rem 0 3rem}
+
+/* CARDS */
+.card{background:#fff;border-radius:0;border:none;border-bottom:1px solid #e5e7eb;padding:1.5rem 2rem;margin-bottom:0}
+.card-hd{display:flex;align-items:center;gap:10px;margin-bottom:1.1rem}
+.card-hd-icon{width:32px;height:32px;background:#fef3c7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.card-hd h3{font-size:0.95rem;font-weight:700;color:#111827}
+.card-hd p{font-size:0.74rem;color:#6b7280}
+
+/* DROP ZONE */
+.drop-zone{border:2px dashed #d1d5db;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:pointer;transition:all 0.2s;background:#f9fafb;position:relative}
+.drop-zone:hover,.drop-zone.drag{border-color:#f97316;background:#fff7ed}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:2.2rem;margin-bottom:0.5rem}
+.drop-zone h4{font-size:0.9rem;font-weight:600;color:#111827;margin-bottom:0.2rem}
+.drop-zone p{font-size:0.78rem;color:#9ca3af}
+.file-badge{display:none;align-items:center;gap:8px;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:7px;padding:0.55rem 0.9rem;margin-top:0.75rem}
+.file-badge span{font-size:0.82rem;font-weight:600;color:#065f46;flex:1}
+.file-badge button{background:none;border:none;color:#6b7280;cursor:pointer;font-size:1rem;padding:0}
+.file-badge button:hover{color:#ef4444}
+.alert{display:none;padding:0.55rem 0.9rem;border-radius:7px;font-size:0.8rem;margin-top:0.6rem}
+.alert.err{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}
+.alert.ok{background:#f0fdf4;color:#166534;border:1px solid #86efac}
+
+/* COLUMN GRID */
+.col-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:0.9rem}
+.col-item{border:1.5px solid #fde68a;border-radius:7px;padding:0.5rem 0.75rem;background:#fffbeb}
+.col-item.opt{border-color:#a7f3d0;background:#f0fdf4}
+.col-item .cn{font-size:0.78rem;font-weight:700;color:#92400e}
+.col-item.opt .cn{color:#065f46}
+.col-item .cd{font-size:0.7rem;color:#78716c}
+
+/* PARAMS */
+.param-section-label{font-size:0.68rem;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1.5px;margin:1.1rem 0 0.6rem;padding-bottom:0.3rem;border-bottom:1.5px solid #fed7aa}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:0.9rem}
+.pgrid.one{grid-template-columns:1fr}
+.pg{display:flex;flex-direction:column;gap:3px}
+.pg label{font-size:0.78rem;font-weight:600;color:#374151}
+.pg .desc{font-size:0.68rem;color:#9ca3af;line-height:1.3}
+.pg input,.pg select{width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-size:0.84rem;color:#111827;outline:none;background:#fff;transition:border-color 0.2s}
+.pg input:focus,.pg select:focus{border-color:#f97316}
+
+/* READY BOX */
+.ready-box{background:#111827;border-radius:12px;padding:1.5rem;margin-bottom:1.25rem;text-align:center}
+.ready-box h3{font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:0.4rem}
+.ready-box p{font-size:0.82rem;color:#9ca3af;margin-bottom:1.1rem;line-height:1.5}
+#runHint{font-size:0.75rem;color:#6b7280;margin-top:0.6rem}
+.btn-run{background:#f97316;color:#fff;border:none;padding:12px 32px;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;min-width:160px}
+.btn-run:hover{background:#ea6c05}
+.btn-run:disabled{background:#d1d5db;color:#9ca3af;cursor:not-allowed}
+
+/* PROGRESS */
+.prog-box{display:none;background:#1f2937;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem}
+.steps{display:flex;gap:0.5rem;margin-bottom:0.75rem}
+.sd{flex:1;height:6px;border-radius:3px;background:#374151;transition:background 0.3s}
+.sd.done{background:#f97316}
+.prog-lbl{font-size:0.76rem;color:#9ca3af;text-align:center}
+
+/* STATUS */
+#statusBox{margin-top:0.75rem;padding:0.6rem 0.9rem;border-radius:7px;font-size:0.8rem;display:none}
+#statusBox.info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+#statusBox.success{background:#f0fdf4;color:#166534;border:1px solid #86efac}
+#statusBox.error{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}
+
+/* RESULTS */
+#resultsPanel{display:none;margin-top:0.5rem}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1rem}
+.stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0.9rem;text-align:center}
+.stat-card .sv{font-size:0.95rem;font-weight:700;color:#f97316;font-family:monospace}
+.stat-card .sl{font-size:0.67rem;color:#6b7280;margin-top:2px}
+.res-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem}
+.res-hd h3{font-size:0.9rem;font-weight:700;color:#111827}
+.dl-btns{display:flex;gap:0.5rem}
+.dl-btn{padding:6px 14px;border-radius:6px;font-size:0.77rem;font-weight:600;cursor:pointer;border:1.5px solid #f97316;background:#fff;color:#f97316;transition:all 0.2s}
+.dl-btn:hover{background:#f97316;color:#fff}
+.dl-btn:disabled{border-color:#d1d5db;color:#9ca3af;cursor:not-allowed}
+.chart-box{border:1px solid #e5e7eb;border-radius:10px;padding:1rem;background:#fff}
+#noResults{text-align:center;padding:2.5rem 1rem;background:#fff;border:1px solid #e5e7eb;border-radius:12px}
+#noResults .ico{font-size:2.2rem;margin-bottom:0.5rem}
+#noResults p{font-size:0.82rem;color:#9ca3af;line-height:1.5}
+
+footer{background:#111827;color:#6b7280;text-align:center;padding:1.25rem 5%;font-size:0.78rem;margin-top:1.5rem}
+footer strong{color:#f97316}
+
+@media(max-width:700px){.hero-inner,.pgrid,.col-grid,.stats-row{grid-template-columns:1fr}.hero-tags{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="dot">⚫</div>
+    <span>GRMHD<b>SED Calc</b></span>
+  </div>
+  <div class="nav-status">
+    <div class="py-dot" id="pyDot"></div>
+    <span class="py-msg" id="pyMsg">Loading Python…</span>
+  </div>
+  <button class="nav-btn" onclick="document.querySelector('.main').scrollIntoView({behavior:'smooth'})">Get Started →</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-label">Astrophysics Research Tool</div>
+      <h1>Broadband <span>Spectral Energy</span><br/>Distribution from Black Hole Accretion</h1>
+      <p>Compute self-consistent synchrotron and inverse Compton spectral energy distributions directly from GRMHD simulation outputs. Upload your 3D accretion disk data, configure physical model parameters, and generate the full broadband SED — running entirely in your browser via Python.</p>
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="document.querySelector('.main').scrollIntoView({behavior:'smooth'})">Get Started ↓</button>
+        <button class="btn-secondary">View Documentation</button>
+      </div>
+      <div class="hero-tags">
+        <div class="hero-tag"><div class="t">GRMHD</div><div class="s">3D SIM DATA</div></div>
+        <div class="hero-tag"><div class="t">Syn + IC</div><div class="s">FULL SED</div></div>
+        <div class="hero-tag"><div class="t">NumPy · SciPy</div><div class="s">PYTHON BACKEND</div></div>
+        <div class="hero-tag"><div class="t">In-Browser</div><div class="s">NO SERVER NEEDED</div></div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="feature-row"><div class="feature-icon">📡</div><div><h4>Synchrotron Emission</h4><p>Self-absorbed emissivity across 3D grid</p></div></div>
+      <div class="feature-row"><div class="feature-icon">🔁</div><div><h4>Inverse Compton</h4><p>Multi-scattering IC with Wien cutoff</p></div></div>
+      <div class="feature-row"><div class="feature-icon">📊</div><div><h4>SED Output</h4><p>ν L_ν vs ν — downloadable CSV + PNG</p></div></div>
+      <div class="formula-box">
+        <p><span>ν_c</span> = (3/2) ν_s Θ_e²</p>
+        <p><span>j_ν^syn</span> ∝ nₑ νc / K₂(1/Θₑ)</p>
+        <p><span>τ</span> = nₑ σT ℓ &nbsp;&nbsp; <span>y</span> = 4 Θₑ max(τ, τ²)</p>
+        <p><span>j_ν^IC</span> = y · j_ν^syn · e^(-hν/kTₑ)</p>
+        <p><span>L_ν</span> = ∫ j_ν dV</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CALCULATOR HEADER -->
+<div class="calc-header">
+  <div class="calc-label">Calculator</div>
+  <h2>Upload Data &amp; Configure Model</h2>
+  <p>Provide your GRMHD simulation output as a CSV file and set the physical model parameters below. The Run Code button will activate only after both are provided.</p>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- UPLOAD -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hd-icon">📂</div>
+      <div><h3>Simulation Data</h3><p>Upload your GRMHD output CSV</p></div>
+    </div>
+    <div class="drop-zone" id="dropZone"
+      ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+      <input type="file" id="csvFile" accept=".csv" onchange="handleFile(this.files[0])"/>
+      <div class="drop-icon">📂</div>
+      <h4>Drop CSV file here or click to browse</h4>
+      <p>Accepts .csv files only</p>
+    </div>
+    <div class="file-badge" id="fileBadge">
+      <span id="fileName">—</span>
+      <button onclick="clearFile()" title="Remove file">✕</button>
+    </div>
+    <div class="alert err" id="alertCSV"></div>
+    <div class="alert ok" id="successCSV"></div>
+
+    <div style="font-size:0.78rem;font-weight:700;color:#374151;margin:1rem 0 0.5rem">Required column structure</div>
+    <div class="col-grid">
+      <div class="col-item"><div class="cn">r</div><div class="cd">Radial grid points</div></div>
+      <div class="col-item"><div class="cn">h</div><div class="cd">Polar (θ) grid</div></div>
+      <div class="col-item"><div class="cn">phi</div><div class="cd">Azimuthal (φ) grid</div></div>
+      <div class="col-item"><div class="cn">rho</div><div class="cd">Gas density ρ</div></div>
+      <div class="col-item"><div class="cn">B</div><div class="cd">Magnetic field</div></div>
+      <div class="col-item"><div class="cn">pg</div><div class="cd">Gas pressure</div></div>
+      <div class="col-item opt" style="grid-column:1/-1"><div class="cn">volume_element &nbsp;<em style="font-weight:400">(optional)</em></div><div class="cd">Auto-computed as r² sinθ Δr Δθ Δφ if absent</div></div>
+    </div>
+  </div>
+
+  <!-- KEY PARAMS -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hd-icon">⚙️</div>
+      <div><h3>Key Physical Parameters</h3><p>Core accretion and plasma parameters</p></div>
+    </div>
+    <div class="pgrid">
+      <div class="pg">
+        <label>Ṁ (Ṁ<sub>Edd</sub>)</label>
+        <div class="desc">Mass accretion rate at horizon, in Eddington units</div>
+        <input id="p_mdot" type="number" value="0.01" step="0.001"/>
+      </div>
+      <div class="pg">
+        <label>M<sub>BH</sub> (M<sub>☉</sub>)</label>
+        <div class="desc">Black hole mass in solar masses</div>
+        <input id="p_mbh" type="number" value="14" step="1"/>
+      </div>
+      <div class="pg">
+        <label>μ<sub>i</sub></label>
+        <div class="desc">Mean molecular weight per ion. Pure H: 0.5</div>
+        <input id="p_mui" type="number" value="0.5" step="0.1"/>
+      </div>
+      <div class="pg">
+        <label>μ<sub>e</sub></label>
+        <div class="desc">Mean molecular weight per electron. Pure H: 0.5</div>
+        <input id="p_mue" type="number" value="0.5" step="0.1"/>
+      </div>
+    </div>
+    <div class="pgrid one" style="margin-top:0.9rem">
+      <div class="pg">
+        <label>R (T<sub>p</sub>/T<sub>e</sub>)</label>
+        <div class="desc">Proton-to-electron temperature ratio</div>
+        <input id="p_R" type="number" value="300" step="10"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPECTRAL PARAMS -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hd-icon" style="background:#ede9fe">📐</div>
+      <div><h3>Spectral &amp; Radiative Transfer Parameters</h3><p>Frequency grid and Comptonization settings</p></div>
+    </div>
+
+    <div class="param-section-label">Frequency Grid</div>
+    <div class="pgrid">
+      <div class="pg"><label>N<sub>freq</sub></label><div class="desc">Number of log-spaced frequency grid points</div><input id="p_Nfreq" type="number" value="100" step="10" min="10" max="500"/></div>
+      <div class="pg"><label>ν<sub>min</sub> (Hz)</label><div class="desc">Lower bound of spectral frequency grid</div><input id="p_numin" type="number" value="1e9"/></div>
+      <div class="pg"><label>ν<sub>max</sub> (Hz)</label><div class="desc">Upper bound of spectral frequency grid</div><input id="p_numax" type="number" value="1e22"/></div>
+    </div>
+
+    <div class="param-section-label">Comptonization</div>
+    <div class="pgrid">
+      <div class="pg"><label>τ<sub>max</sub></label><div class="desc">Max optical depth before spectrum thermalizes</div><input id="p_taumax" type="number" value="10" step="1"/></div>
+      <div class="pg"><label>f<sub>cutoff</sub></label><div class="desc">Wien cutoff factor for IC high-energy suppression</div><input id="p_fcutoff" type="number" value="2" step="0.5"/></div>
+      <div class="pg"><label>N<sub>scatt,thin</sub></label><div class="desc">Max IC scatterings in optically thin regions (τ &lt; 1)</div><input id="p_Nthin" type="number" value="1" step="1"/></div>
+      <div class="pg"><label>N<sub>scatt,thick</sub></label><div class="desc">Max IC scatterings in optically thick regions (τ ≥ 1)</div><input id="p_Nthick" type="number" value="5" step="1"/></div>
+    </div>
+
+    <div class="param-section-label">Volume Element</div>
+    <div class="pgrid one">
+      <div class="pg">
+        <label>Source</label>
+        <div class="desc">Use CSV column if present, otherwise auto-compute r² sinθ Δr Δθ Δφ</div>
+        <select id="p_vol_mode"><option value="csv">Use volume_element column from CSV</option><option value="auto">Auto-compute from grid</option></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- READY / RUN -->
+  <div class="ready-box">
+    <h3>Ready to Compute?</h3>
+    <p>Upload your simulation CSV and ensure all parameters are set, then click Run Code to start the calculation.</p>
+    <button class="btn-run" id="runBtn" disabled onclick="runCalculation()">▶ Run Code</button>
+    <div id="runHint">Waiting for Python environment to load…</div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="prog-box" id="progressBox">
+    <div class="steps"><div class="sd" id="d1"></div><div class="sd" id="d2"></div><div class="sd" id="d3"></div><div class="sd" id="d4"></div></div>
+    <div class="prog-lbl" id="progLbl">Starting…</div>
+  </div>
+  <div id="statusBox"></div>
+
+  <!-- RESULTS -->
+  <div id="resultsPanel">
+    <div class="stats-row">
+      <div class="stat-card"><div class="sv" id="s_peak_syn">—</div><div class="sl">Peak ν L<sub>ν</sub> Synchrotron</div></div>
+      <div class="stat-card"><div class="sv" id="s_peak_ic">—</div><div class="sl">Peak ν L<sub>ν</sub> IC</div></div>
+      <div class="stat-card"><div class="sv" id="s_peak_tot">—</div><div class="sl">Peak ν L<sub>ν</sub> Total</div></div>
+    </div>
+    <div class="res-hd">
+      <h3>Results</h3>
+      <div class="dl-btns">
+        <button class="dl-btn" id="btnDlCSV" disabled onclick="downloadCSV()">⬇ Download CSV</button>
+        <button class="dl-btn" id="btnDlPNG" disabled onclick="downloadPNG()">⬇ Download PNG</button>
+      </div>
+    </div>
+    <div class="chart-box"><canvas id="specChart"></canvas></div>
+  </div>
+
+  <div id="noResults">
+    <div class="ico">📊</div>
+    <p>Upload your simulation CSV, configure the model parameters,<br/>and click <strong>Run Code</strong> to generate the spectrum.</p>
+  </div>
+
+</div><!-- /main -->
+
+<footer>
+  <strong>GRMHD SED Calc</strong> &nbsp;·&nbsp; IISc Bangalore &nbsp;·&nbsp; Astrophysics Research &nbsp;·&nbsp; Powered by Pyodide + NumPy + SciPy
+</footer>
+
+<script>
+var pyodide=null, csvRaw=null, specResults=null, specChart=null, pyReady=false;
+
+// ── Load Pyodide ──────────────────────────────────────────────────────────────
+loadPyodide().then(function(py){
+  pyodide=py; return pyodide.loadPackage(['numpy','scipy']);
+}).then(function(){
+  pyReady=true;
+  setStatus('ready','Python ready');
+  checkRunReady();
+}).catch(function(){
+  setStatus('error','Python load failed');
+});
+
+function setStatus(state,msg){
+  document.getElementById('pyDot').className='py-dot '+state;
+  document.getElementById('pyMsg').textContent=msg;
+}
+
+function checkRunReady(){
+  var ok=pyReady&&csvRaw!==null;
+  document.getElementById('runBtn').disabled=!ok;
+  document.getElementById('runHint').textContent=
+    !pyReady?'Waiting for Python environment to load…':
+    !csvRaw?'Please upload your simulation CSV file to enable the Run Code button.':
+    'All inputs ready — click Run Code to start the computation.';
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+function onDrag(e,s){e.preventDefault();document.getElementById('dropZone').classList.toggle('drag',s);}
+function onDrop(e){e.preventDefault();onDrag(e,false);handleFile(e.dataTransfer.files[0]);}
+
+function handleFile(file){
+  if(!file)return;
+  hideAlerts();
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    csvRaw=ev.target.result;
+    document.getElementById('fileName').textContent=file.name;
+    document.getElementById('fileBadge').style.display='flex';
+    var el=document.getElementById('successCSV');
+    el.textContent='"'+file.name+'" loaded successfully';
+    el.style.display='block';
+    checkRunReady();
+  };
+  reader.readAsText(file);
+}
+
+function clearFile(){
+  csvRaw=null;
+  document.getElementById('csvFile').value='';
+  document.getElementById('fileBadge').style.display='none';
+  hideAlerts(); checkRunReady();
+}
+
+function gv(id){return document.getElementById(id).value;}
+
+// ── Run calculation ───────────────────────────────────────────────────────────
+function runCalculation(){
+  if(!pyodide||!csvRaw)return;
+  hideAlerts();
+  var btn=document.getElementById('runBtn');
+  btn.textContent='⏳ Computing…'; btn.disabled=true;
+  setStatus('running','Running calculation…');
+  var pb=document.getElementById('progressBox');
+  pb.style.display='block'; setStep(1);
+
+  pyodide.globals.set('csv_content', csvRaw);
+  pyodide.globals.set('_mu_i',   parseFloat(gv('p_mui')));
+  pyodide.globals.set('_mu_e',   parseFloat(gv('p_mue')));
+  pyodide.globals.set('_R',      parseFloat(gv('p_R')));
+  pyodide.globals.set('_Nfreq',  parseInt(gv('p_Nfreq')));
+  pyodide.globals.set('_numin',  parseFloat(gv('p_numin')));
+  pyodide.globals.set('_numax',  parseFloat(gv('p_numax')));
+  pyodide.globals.set('_taumax', parseFloat(gv('p_taumax')));
+  pyodide.globals.set('_fc',     parseFloat(gv('p_fcutoff')));
+  pyodide.globals.set('_Nthin',  parseFloat(gv('p_Nthin')));
+  pyodide.globals.set('_Nthick', parseFloat(gv('p_Nthick')));
+  pyodide.globals.set('_volmode',gv('p_vol_mode'));
+
+  setTimeout(function(){setStep(2);},300);
+  setTimeout(function(){setStep(3);},600);
+
+  var pyCode=[
+"import numpy as np, json",
+"from scipy.special import kn",
+"lines=[l.strip() for l in csv_content.strip().split('\\n') if l.strip()]",
+"header=[h.strip() for h in lines[0].split(',')]",
+"ncols=len(header)",
+"rows=[]",
+"for l in lines[1:]:",
+"    vals=l.split(',')",
+"    if len(vals)<ncols: continue",
+"    try: rows.append([float(v.strip()) for v in vals[:ncols]])",
+"    except: continue",
+"data=np.array(rows)",
+"def gc(n): return data[:,header.index(n)] if n in header else None",
+"r=np.unique(gc('r')); h=np.unique(gc('h')); phi=np.unique(gc('phi'))",
+"r_res,th_res,phi_res=len(r),len(h),len(phi)",
+"rho=gc('rho').reshape(r_res,th_res,phi_res)",
+"B=gc('B').reshape(r_res,th_res,phi_res)",
+"pg=gc('pg').reshape(r_res,th_res,phi_res)",
+"vc=gc('volume_element')",
+"if vc is not None and _volmode=='csv':",
+"    volume_element=vc.reshape(r_res,th_res,phi_res)",
+"else:",
+"    dr=r[1]-r[0] if r_res>1 else 1.0",
+"    dh=h[1]-h[0] if th_res>1 else 1.0",
+"    dp=phi[1]-phi[0] if phi_res>1 else 1.0",
+"    volume_element=(r[:,None,None]**2)*np.sin(h[None,:,None])*dr*dh*dp",
+"cl=2.998e10;e=4.803e-10;sigT=6.65245873e-25",
+"mp=1.67262171e-24;me=9.109e-28;kB=1.3806e-16;hPl=6.626e-27;EPS=1e-100",
+"r3d=r[:,None,None]",
+"Tp=(_mu_i*pg*mp)/(kB*rho+EPS)",
+"Te=Tp/_R; Theta_e=kB*Te/(me*cl**2); ne=rho/(_mu_e*mp+EPS)",
+"nu_s=(e*B)/(2*np.pi*me*cl+EPS); nu_c=1.5*nu_s*Theta_e**2",
+"dP_dtheta=np.gradient(pg,h,axis=1)",
+"dP_dz=np.abs(dP_dtheta)/(r3d+EPS)",
+"length_scale=pg/np.maximum(dP_dz,1e-30)",
+"tau=ne*sigT*length_scale",
+"tau_effective=np.minimum(np.maximum(tau,tau**2),_taumax)",
+"y_compton=4.0*Theta_e*tau_effective",
+"A_amp=1.0+4.0*Theta_e+16.0*Theta_e**2",
+"N_scat=tau_effective",
+"N_max=np.where(tau<1,_Nthin,_Nthick)",
+"N_scat_cap=np.minimum(N_scat,N_max)",
+"K2=kn(2,1.0/np.maximum(Theta_e,1e-10))",
+"K2=np.maximum(K2,1e-300)",
+"nu_array=np.logspace(np.log10(_numin),np.log10(_numax),_Nfreq)",
+"log_nu=np.log10(nu_array)",
+"N_flat=r_res*th_res*phi_res",
+"vol_flat=volume_element.ravel(); Te_flat=Te.ravel()",
+"ne_flat=ne.ravel(); nuc_flat=nu_c.ravel(); K2_flat=K2.ravel()",
+"ls_flat=length_scale.ravel(); yc_flat=y_compton.ravel()",
+"A_flat=A_amp.ravel(); Nc_flat=N_scat_cap.ravel()",
+"jsf=np.zeros((N_flat,_Nfreq),dtype=np.float32)",
+"L_syn=np.zeros(_Nfreq)",
+"for ifreq in range(_Nfreq):",
+"    nu=nu_array[ifreq]; X=nu/np.maximum(nuc_flat,1e-30)",
+"    pref=(np.sqrt(2)*np.pi*e**2*ne_flat*nuc_flat)/(3*cl*K2_flat+EPS)",
+"    shape=(X**0.5+2**(11.0/12)*X**(1.0/6))**2*np.exp(-np.minimum(X**(1.0/3),500))",
+"    j_syn=pref*shape",
+"    tau_s=j_syn*cl**2/(2*nu**2*kB*np.maximum(Te_flat,1e-30))*ls_flat",
+"    jse=np.where(tau_s>0.1,j_syn*(1-np.exp(-np.minimum(tau_s,500)))/np.maximum(tau_s,1e-300),j_syn)",
+"    jsf[:,ifreq]=jse.astype(np.float32); L_syn[ifreq]=float(np.dot(jse,vol_flat))",
+"log_jsf=np.log10(jsf+np.float32(1e-30)).astype(np.float32); del jsf",
+"L_IC=np.zeros(_Nfreq); arange_N=np.arange(N_flat)",
+"for ifreq in range(_Nfreq):",
+"    nu_obs=nu_array[ifreq]",
+"    nu_seed=nu_obs/np.maximum(A_flat**Nc_flat,1e-300)",
+"    lns=np.log10(np.maximum(nu_seed,1e-300)).astype(np.float32)",
+"    log_nu32=log_nu.astype(np.float32)",
+"    idx=np.searchsorted(log_nu32,lns).clip(1,_Nfreq-1)",
+"    lo=idx-1; hi=idx",
+"    t=np.clip((lns-log_nu32[lo])/(log_nu32[hi]-log_nu32[lo]+np.float32(1e-7)),0,1)",
+"    log_jseed=log_jsf[arange_N,lo]*(1-t)+log_jsf[arange_N,hi]*t",
+"    j_seed=(10**log_jseed).astype(np.float64)",
+"    xw=hPl*nu_obs/(kB*np.maximum(Te_flat,1e-30)*_fc)",
+"    cutoff=np.exp(-np.minimum(xw,500))",
+"    L_IC[ifreq]=float(np.dot(yc_flat*j_seed*cutoff,vol_flat))",
+"L_tot=L_syn+L_IC",
+"json.dumps({'nu':nu_array.tolist(),'L_syn':L_syn.tolist(),'L_IC':L_IC.tolist(),'L_tot':L_tot.tolist()})"
+  ].join('\n');
+
+  pyodide.runPythonAsync(pyCode).then(function(res){
+    specResults=JSON.parse(res);
+    var nf=parseInt(gv('p_Nfreq'));
+    setStep(4);
+    renderResults(specResults);
+    showSt('Calculation complete! '+nf+' spectral points computed.','success');
+    setStatus('ready','Done — '+nf+' spectral points');
+    document.getElementById('btnDlCSV').disabled=false;
+    document.getElementById('btnDlPNG').disabled=false;
+    pb.style.display='none';
+    btn.textContent='▶ Run Code'; btn.disabled=false;
+    checkRunReady();
+  }).catch(function(err){
+    var msg=err&&err.message?err.message:String(err);
+    showErr(msg);
+    setStatus('error','Calculation failed');
+    pb.style.display='none';
+    btn.textContent='▶ Run Code'; btn.disabled=false;
+    checkRunReady();
+    console.error(err);
+  });
+}
+
+function setStep(n){
+  ['d1','d2','d3','d4'].forEach(function(d,i){
+    document.getElementById(d).className='sd'+(i<n?' done':'');
+  });
+  var labels=['','Parsing CSV & building grid…','Computing synchrotron emission…','Computing inverse Compton…','Complete!'];
+  document.getElementById('progLbl').textContent=labels[n]||'';
+}
+
+function showSt(msg,cls){
+  var el=document.getElementById('statusBox');
+  el.textContent=msg; el.className=cls; el.style.display='block';
+}
+function showErr(msg){
+  var el=document.getElementById('alertCSV');
+  el.textContent='❌ '+msg; el.style.display='block';
+}
+function hideAlerts(){
+  ['alertCSV','successCSV','statusBox'].forEach(function(id){
+    var el=document.getElementById(id); if(el)el.style.display='none';
+  });
+}
+
+function fmtE(v){
+  if(!v||!isFinite(v)||v<=0)return'—';
+  var ex=Math.floor(Math.log10(v));
+  return (v/Math.pow(10,ex)).toFixed(2)+'×10^'+ex;
+}
+
+function renderResults(d){
+  document.getElementById('noResults').style.display='none';
+  document.getElementById('resultsPanel').style.display='block';
+  var nLs=d.nu.map(function(n,i){return n*d.L_syn[i];});
+  var nLi=d.nu.map(function(n,i){return n*d.L_IC[i];});
+  var nLt=d.nu.map(function(n,i){return n*d.L_tot[i];});
+  document.getElementById('s_peak_syn').textContent=fmtE(Math.max.apply(null,nLs));
+  document.getElementById('s_peak_ic').textContent=fmtE(Math.max.apply(null,nLi));
+  document.getElementById('s_peak_tot').textContent=fmtE(Math.max.apply(null,nLt));
+  if(specChart)specChart.destroy();
+  specChart=new Chart(document.getElementById('specChart').getContext('2d'),{
+    type:'line',
+    data:{labels:d.nu,datasets:[
+      {label:'Synchrotron',data:nLs,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.05)',borderWidth:2,pointRadius:0,tension:0.3},
+      {label:'Inverse Compton',data:nLi,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.05)',borderWidth:2,pointRadius:0,tension:0.3},
+      {label:'Total',data:nLt,borderColor:'#111827',backgroundColor:'rgba(17,24,39,0.04)',borderWidth:2,pointRadius:0,tension:0.3,borderDash:[5,3]}
+    ]},
+    options:{responsive:true,
+      scales:{
+        x:{type:'logarithmic',title:{display:true,text:'ν (Hz)',font:{size:12}},ticks:{callback:function(v){return '10^'+Math.round(Math.log10(v));}}},
+        y:{type:'logarithmic',title:{display:true,text:'νLν (erg s⁻¹)',font:{size:12}},ticks:{callback:function(v){return '10^'+Math.round(Math.log10(v));}}}
+      },
+      plugins:{legend:{position:'top'}}
+    }
+  });
+}
+
+function downloadCSV(){
+  if(!specResults)return;
+  var c='Freq (Hz),L_syn (erg/s/Hz),L_IC (erg/s/Hz),L_tot (erg/s/Hz)\n';
+  for(var i=0;i<specResults.nu.length;i++)
+    c+=specResults.nu[i]+','+specResults.L_syn[i]+','+specResults.L_IC[i]+','+specResults.L_tot[i]+'\n';
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([c],{type:'text/csv'}));
+  a.download='SED_results.csv'; a.click();
+}
+function downloadPNG(){
+  if(!specChart)return;
+  var a=document.createElement('a');
+  a.href=document.getElementById('specChart').toDataURL('image/png');
+  a.download='SED_plot.png'; a.click();
+}
+</script>
+</body>
+</html>
